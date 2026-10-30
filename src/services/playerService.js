@@ -48,10 +48,10 @@ let lastManual = 0;
 async function syncSnapshot(trigger = 'schedule') {
   if (syncing) return { status: 'busy' };
   syncing = true;
-  const log = (await pool.query(`INSERT INTO sync_logs (trigger, status) VALUES ($1, 'running') RETURNING id`, [trigger])).rows[0].id;
-  const finish = (status, message, snapshotId = null) =>
-    pool.query('UPDATE sync_logs SET finished_at = now(), status = $2, message = $3, snapshot_id = $4 WHERE id = $1', [log, status, message, snapshotId]);
+  let log = null;
+  const finish = async (status, message, snapshotId = null) => log && pool.query('UPDATE sync_logs SET finished_at = now(), status = $2, message = $3, snapshot_id = $4 WHERE id = $1', [log, status, message, snapshotId]);
   try {
+    log = (await pool.query(`INSERT INTO sync_logs (trigger, status) VALUES ($1, 'running') RETURNING id`, [trigger])).rows[0].id;
     const player = await fetchPlayer(config.playerTag);
     mem = { at: Date.now(), data: player };
     const hash = hashPlayer(player);
