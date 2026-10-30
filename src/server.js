@@ -7,6 +7,8 @@ const pool = require('./config/database');
 const playerRoutes = require('./routes/player');
 const { syncSnapshot } = require('./services/playerService');
 
+process.on('unhandledRejection', (e) => console.error('[unhandledRejection]', e && e.message));
+
 const app = express();
 app.set('trust proxy', 1); // Render sits behind a proxy
 
@@ -39,6 +41,8 @@ app.listen(config.port, () => {
   console.log(`Clash Stats on port ${config.port} for ${config.playerTag}`);
   if (!config.token || !config.databaseUrl) return;
   // Snapshot shortly after boot, then on an interval (Render free instances sleep; see README).
-  setTimeout(() => syncSnapshot('startup'), 5000);
-  setInterval(() => syncSnapshot('schedule'), config.snapshotHours * 3600 * 1000);
+  // .catch keeps a DB problem (e.g. schema not applied yet) from crashing the whole server.
+  const runSync = (t) => syncSnapshot(t).catch((e) => console.error('[sync] failed:', e.message));
+  setTimeout(() => runSync('startup'), 5000);
+  setInterval(() => runSync('schedule'), config.snapshotHours * 3600 * 1000);
 });
